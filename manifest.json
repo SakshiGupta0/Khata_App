@@ -1,0 +1,16 @@
+{
+  "name": "Khata — Family Investment Tracker",
+  "short_name": "Khata",
+  "description": "Family investment tracker: MFs, stocks, FDs, PPF and more",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#5E1F1F",
+  "theme_color": "#5E1F1F",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
