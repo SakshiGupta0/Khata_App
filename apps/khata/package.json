@@ -12,7 +12,6 @@
     "@capacitor/share": "^7.0.0",
     "@capacitor/splash-screen": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
-    "@capacitor-community/speech-recognition": "^7.0.0",
     "@fontsource/archivo": "^5.0.0",
     "@fontsource/fraunces": "^5.0.0",
     "@fontsource/ibm-plex-mono": "^5.0.0",
