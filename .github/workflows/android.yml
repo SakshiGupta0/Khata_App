@@ -35,14 +35,25 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
       - name: Restore signing key
-        run: echo "$KS_B64" | base64 -d > android/app/release.keystore
-        env: { KS_B64: "${{ secrets.KEYSTORE_B64 }}" }
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_B64 }}
+          KS_PASS_SECRET: ${{ secrets.KEYSTORE_PASS }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > android/app/release.keystore
+            echo "KS_PASS=$KS_PASS_SECRET" >> "$GITHUB_ENV"
+            echo "Using the stable family signing key."
+          else
+            P=$(openssl rand -hex 12)
+            keytool -genkeypair -keystore android/app/release.keystore -alias key -keyalg RSA -keysize 2048 -validity 10000 -storepass "$P" -keypass "$P" -dname "CN=Khata Hisaab temporary build"
+            echo "KS_PASS=$P" >> "$GITHUB_ENV"
+            echo "::warning::No KEYSTORE secrets set - built with a TEMPORARY key. Add KEYSTORE_B64 and KEYSTORE_PASS secrets for a stable key."
+          fi
       - name: Build release APK
         working-directory: apps/${{ matrix.app }}/android
         run: ./gradlew assembleRelease --no-daemon
         env:
           KS_FILE: ${{ github.workspace }}/apps/${{ matrix.app }}/android/app/release.keystore
-          KS_PASS: ${{ secrets.KEYSTORE_PASS }}
           KS_ALIAS: key
       - name: Name the APK
         run: |
@@ -52,9 +63,18 @@ jobs:
         with:
           name: ${{ matrix.app }}-apk
           path: out/${{ matrix.app }}.apk
-      - name: Publish to release
-        env: { GH_TOKEN: "${{ github.token }}" }
+
+  publish:
+    needs: apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dl, merge-multiple: true }
+      - name: Push APKs to the apks branch
         run: |
-          TAG="build-${{ github.run_number }}"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Build ${{ github.run_number }}" --notes "Khata & Hisaab APKs" --repo "$GITHUB_REPOSITORY"
-          gh release upload "$TAG" ../../out/${{ matrix.app }}.apk --clobber --repo "$GITHUB_REPOSITORY"
+          mkdir apks && cp dl/*.apk apks/ && cd apks
+          printf "Build %s\n" "${{ github.run_number }}" > BUILD.txt
+          git init -q -b apks
+          git config user.name "build-bot"; git config user.email "actions@users.noreply.github.com"
+          git add -A && git commit -qm "APKs from build ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" apks
