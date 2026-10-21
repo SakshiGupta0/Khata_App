@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hisaab — हिसाब</title>
+<meta name="theme-color" content="#174535">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="fonts/fonts.css">
+<script src="vendor/chart.umd.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="native.js"></script>
+<script src="profiles.js"></script>
+<style>
+:root{
+  --paper:#F4F4EE; --card:#FFFFFF; --ink:#1E211D; --muted:#68705F;
+  --deep:#215F49; --deeper:#174535; --gold:#A87B2C; --gold-soft:#D8C378;
+  --gain:#1E7A55; --loss:#B3362B; --line:#E1E4D8; --chip:#EAEDE1;
+  --radius:14px; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'Archivo',system-ui,sans-serif; --disp:'Fraunces',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height:100vh;padding-bottom:calc(96px + env(safe-area-inset-bottom));font-size:16px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:17px}
+
+.band{background:linear-gradient(180deg,var(--deep) 0%,var(--deeper) 100%);color:#EFF5E9;padding:calc(16px + env(safe-area-inset-top)) 18px 18px;position:relative}
+.band::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:repeating-linear-gradient(90deg,var(--gold-soft) 0 14px,transparent 14px 22px);opacity:.85}
+.band .brand{display:flex;align-items:baseline;justify-content:space-between}
+.band h1{font-family:var(--disp);font-weight:600;font-size:23px}
+.band h1 .hindi{font-size:15px;color:#CBDDB9;margin-left:8px}
+.band .sync{font-size:11px;color:#CBDDB9;text-align:right}
+.band .month-label{margin-top:12px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#C9DCA6}
+.band .big{font-size:32px;font-weight:600;margin-top:2px}
+.band .sub{margin-top:6px;font-size:14px;display:flex;gap:16px;flex-wrap:wrap}
+.band .sub .in{color:#9FE3BE}
+
+main{max-width:640px;margin:0 auto;padding:16px 14px 8px}
+.view{display:none}.view.active{display:block}
+.section-title{font-family:var(--disp);font-size:17px;font-weight:600;margin:20px 2px 10px}
+.section-title:first-child{margin-top:4px}
+.section-title .hindi{font-size:13px;color:var(--muted);font-family:var(--sans);font-weight:500;margin-left:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.subtle{color:var(--muted);font-size:12.5px}
+.empty{color:var(--muted);font-size:14.5px;text-align:center;padding:28px 12px;border:1.5px dashed var(--line);border-radius:var(--radius);line-height:1.5}
+.up{color:var(--gain)}.down{color:var(--loss)}
+
+/* source cards */
+.src-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.src-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.src-card .sn{font-weight:700;font-size:14px}
+.src-card .sh{font-size:11.5px;color:var(--muted)}
+.src-card .sb{font-size:19px;font-weight:600;margin-top:6px}
+
+/* entries */
+.day-head{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin:16px 2px 8px;display:flex;justify-content:space-between}
+.entry{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px}
+.entry:active{background:#F7F9F1}
+.entry .e-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.entry .e-what{font-weight:600;font-size:15px;flex:1;line-height:1.35}
+.entry .e-amt{font-size:16.5px;font-weight:700;white-space:nowrap}
+.entry .e-sub{display:flex;justify-content:space-between;margin-top:4px;font-size:12.5px;color:var(--muted);gap:10px;flex-wrap:wrap}
+.cat-chip{display:inline-block;font-size:11px;font-weight:600;background:var(--chip);border-radius:6px;padding:2px 8px;margin-right:6px}
+.src-chip{display:inline-block;font-size:11px;font-weight:600;color:var(--deep);background:#E3EEE4;border-radius:6px;padding:2px 8px}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:500}
+.chip.on{background:var(--deep);border-color:var(--deep);color:#EFF5E9}
+
+canvas{max-width:100%}
+.chart-wrap{position:relative;height:220px}
+.rank-line{display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.rank-line:last-child{border-bottom:none}
+
+/* nav */
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:flex-end;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:40}
+nav button{flex:1;background:none;border:none;color:var(--muted);font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0}
+nav button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--deep)}
+nav .mic-btn{margin-top:-30px}
+nav .mic-btn .mic{width:64px;height:64px;border-radius:50%;background:var(--deep);color:#EFF5E9;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(23,69,53,.4)}
+nav .mic-btn .mic svg{width:30px;height:30px}
+nav .mic-btn:active .mic{background:var(--deeper)}
+
+/* sheet */
+.sheet-veil{position:fixed;inset:0;background:rgba(30,33,29,.45);z-index:50;display:none}
+.sheet-veil.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:90vh;overflow-y:auto;background:var(--paper);border-radius:18px 18px 0 0;z-index:51;padding:10px 16px calc(24px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .22s ease}
+@media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+.sheet.open{transform:none}
+.sheet .grab{width:38px;height:4px;border-radius:2px;background:#C6CBB8;margin:4px auto 12px}
+.sheet h2{font-family:var(--disp);font-size:20px;font-weight:600;margin-bottom:12px}
+@media (min-width:640px){.sheet{max-width:560px;margin:0 auto;border-radius:18px;bottom:24px}}
+
+/* voice UI */
+.voice-stage{text-align:center;padding:10px 0 4px}
+.voice-stage .vmic{width:96px;height:96px;border-radius:50%;background:var(--deep);color:#EFF5E9;border:none;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(23,69,53,.35)}
+.voice-stage .vmic svg{width:44px;height:44px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.voice-stage .vmic.listening{animation:pulse 1.2s ease-in-out infinite;background:var(--loss)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.voice-stage .vmic.listening{animation:none}}
+.voice-stage .vhint{margin-top:12px;font-size:15px;color:var(--muted);line-height:1.5}
+.transcript{min-height:52px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:14px;font-size:16.5px;line-height:1.5;text-align:left}
+.transcript .dim{color:var(--muted)}
+.lang-row{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.lang-row .chip{font-size:13px}
+
+/* forms */
+.f-row{margin-bottom:13px}
+.f-row label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.f-row input,.f-row select,.f-row textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:13px 12px;background:var(--card);color:var(--ink)}
+.f-row input:focus,.f-row select:focus{outline:2px solid var(--deep);outline-offset:-1px}
+.f-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{width:100%;border:none;border-radius:12px;padding:15px;font-size:16.5px;font-weight:700}
+.btn.primary{background:var(--deep);color:#EFF5E9}
+.btn.primary:active{background:var(--deeper)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);margin-top:8px;font-weight:600}
+.btn.danger{background:transparent;border:1px solid var(--loss);color:var(--loss);margin-top:8px;font-weight:600}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:13px}
+.seg button{border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:12px 6px;font-size:14.5px;font-weight:700;color:var(--muted)}
+.seg button.on.debit{border-color:var(--loss);color:var(--loss);background:#FBF0EE}
+.seg button.on.credit{border-color:var(--gain);color:var(--gain);background:#EDF6F0}
+.seg button.on.transfer{border-color:var(--deep);color:var(--deep);background:#E9F1EB}
+.kv{display:flex;justify-content:space-between;padding:10px 2px;border-bottom:1px solid var(--line);font-size:14.5px}
+.kv .k{color:var(--muted)}
+.kv .v{font-weight:600;text-align:right;max-width:60%}
+
+.mem-line{display:flex;justify-content:space-between;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line);font-size:14.5px}
+.mem-line:last-child{border-bottom:none}
+.mem-line .del{background:none;border:none;color:var(--loss);font-weight:600;font-size:12.5px}
+.disclaimer{font-size:11.5px;color:var(--muted);line-height:1.5;padding:10px 4px 4px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(108px + env(safe-area-inset-bottom));background:var(--ink);color:#F4F4EE;font-size:14.5px;padding:12px 16px;border-radius:10px;z-index:70;max-width:88vw;display:none;line-height:1.4}
+#toast.show{display:block}
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="brand">
+    <h1>Hisaab<span class="hindi">हिसाब</span><span data-pf-chip style="margin-left:10px;vertical-align:middle"></span></h1>
+    <div class="sync" id="syncText">local only</div>
+  </div>
+  <div class="month-label" id="monthLabel">This month · इस महीने</div>
+  <div class="big num" id="monthSpent">₹0 spent</div>
+  <div class="sub num"><span class="in" id="monthIn">₹0 received</span><span id="totalCash">₹0 in hand</span></div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section class="view active" id="view-home">
+    <div class="section-title">Money kept in <span class="hindi">पैसा कहाँ है</span></div>
+    <div class="src-grid" id="srcCards"></div>
+    <div class="section-title">Recent <span class="hindi">हाल का</span></div>
+    <div id="recentList"></div>
+    <button class="btn ghost" id="typeAddBtn" style="margin-top:4px">✎ Type an entry instead of speaking</button>
+  </section>
+
+  <!-- LEDGER -->
+  <section class="view" id="view-ledger">
+    <div class="chips" id="srcChips"></div>
+    <div class="chips" id="typeChips2"></div>
+    <div id="ledgerList"></div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section class="view" id="view-insights">
+    <div class="chips" id="monthChips"></div>
+    <div class="section-title">Where the money went <span class="hindi">कहाँ गया</span></div>
+    <div class="card"><div class="chart-wrap"><canvas id="catChart"></canvas></div></div>
+    <div class="section-title">Day by day (last 14)</div>
+    <div class="card"><div class="chart-wrap"><canvas id="dayChart"></canvas></div></div>
+    <div class="section-title">Biggest categories</div>
+    <div class="card" id="catRank"></div>
+    <div class="section-title">Month vs month</div>
+    <div class="card" id="momCard"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings">
+    <div class="section-title">Profiles <span class="hindi">कौन-कौन</span></div>
+    <div class="card">
+      <div id="profList"></div>
+      <button class="btn ghost" id="manageProfilesBtn">Manage profiles &amp; PINs</button>
+    </div>
+
+    <div class="section-title">Money sources <span class="hindi">बैंक-अलमारी-बटुआ</span></div>
+    <div class="card">
+      <div id="srcList"></div>
+      <div class="f-2col" style="margin-top:10px">
+        <div class="f-row" style="margin:0"><input id="newSrcName" placeholder="Name (e.g. SBI Bank)" maxlength="24"></div>
+        <div class="f-row" style="margin:0"><input id="newSrcBal" type="number" inputmode="numeric" placeholder="Opening ₹"></div>
+      </div>
+      <button class="btn ghost" id="addSrcBtn">+ Add source</button>
+    </div>
+
+    <div class="section-title">Voice language</div>
+    <div class="card">
+      <div class="chips" style="padding-bottom:2px">
+        <button class="chip" data-lang="en-IN">English / Hinglish</button>
+        <button class="chip" data-lang="hi-IN">हिंदी</button>
+      </div>
+      <p class="subtle" style="margin-top:8px;line-height:1.5">Hinglish ("500 diye sabziwale ko") works best on English/Hinglish. Pure Hindi sentences work best on हिंदी.</p>
+    </div>
+
+    <div class="section-title">Shared backend (optional)</div>
+    <div class="card" id="syncCard"></div>
+
+    <div class="section-title">Excel &amp; backup</div>
+    <div class="card">
+      <button class="btn primary" id="excelBtn">Download Excel (.xlsx)</button>
+      <button class="btn ghost" id="exportBtn">Export JSON backup</button>
+      <button class="btn ghost" id="importBtn">Import JSON backup</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="disclaimer">Hisaab v1.0 · Voice recognition runs through your phone's built-in speech service (Google/Apple), needs internet. Always check the entry before saving.</p>
+  </section>
+</main>
+
+<nav>
+  <button data-view="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 9.5V21h14V9.5"/></svg>Home</button>
+  <button data-view="ledger"><svg viewBox="0 0 24 24"><path d="M5 4h14v17l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 9h6M9 13h6"/></svg>Ledger</button>
+  <button class="mic-btn" id="navMic" aria-label="Speak an entry"><span class="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></button>
+  <button data-view="insights"><svg viewBox="0 0 24 24"><path d="M4 19l5-6 4 3 7-9"/><path d="M16 7h4v4"/></svg>Insights</button>
+  <button data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.2-1.6l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.7-1.6L13.5 2h-3l-.3 2.9a7 7 0 0 0-2.7 1.6l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .5.1 1.1.2 1.6l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.7 1.6l.3 2.9h3l.3-2.9a7 7 0 0 0 2.7-1.6l2.3 1 2-3.4-2-1.5c.1-.5.2-1.1.2-1.6z"/></svg>Settings</button>
+</nav>
+
+<div class="sheet-veil" id="veil"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="grab"></div>
+  <div id="sheetBody"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ================= state ================= */
+const LS_KEY = "hisaab_v1";
+const CFG_KEY = "hisaab_cfg_v1";
+const BASE_KEY = "hisaab_base_v1";
+const DATA_PATH = "expenses.json";
+let S = load();
+let CFG = loadCfg();
+let charts = {};
+let ledFilter = { src:"all", type:"all" };
+let insightMonth = 0; // 0 = this month, 1 = last month...
+let syncState = { busy:false, pushTimer:null };
+
+function defaultState(){
+  return { version:1, updatedAt:0,
+    profiles: [{id:"p-mom", name:"Mummy", color:"#215F49", mt:0}],
+    sources: [
+      {id:"s-bank", name:"Bank", hindi:"बैंक", opening:0, aliases:["bank","बैंक","account","khata","खाते","khate"]},
+      {id:"s-cup",  name:"Cupboard", hindi:"अलमारी", opening:0, aliases:["almari","अलमारी","cupboard","ghar","घर","home"]},
+      {id:"s-purse",name:"Purse", hindi:"बटुआ", opening:0, aliases:["batua","batue","बटुआ","बटुए","purse","wallet","jeb","जेब","पर्स","pers"]}
+    ],
+    entries: [], deleted: {}, lang: "en-IN" };
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw){ const d = JSON.parse(raw); if (d && Array.isArray(d.entries)){ const s = Object.assign(defaultState(), d); if(!s.deleted) s.deleted={}; if(!Array.isArray(s.profiles)||!s.profiles.length) s.profiles=defaultState().profiles; return s; } }
+  }catch(e){}
+  return defaultState();
+}
+function persistLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ toast("Could not save — storage blocked/full."); } }
+function save(){ S.updatedAt = Date.now(); persistLocal(); scheduleSync(); }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const inr0 = new Intl.NumberFormat("en-IN",{maximumFractionDigits:0});
+const fmt = n => "₹" + inr0.format(Math.round(n||0));
+function isoDate(d){ const x = d instanceof Date ? d : new Date(d); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+function fmtDay(iso){
+  const today = isoDate(new Date());
+  const yest = isoDate(new Date(Date.now()-86400000));
+  if (iso===today) return "Today · आज";
+  if (iso===yest) return "Yesterday · कल";
+  return new Date(iso+"T12:00").toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});
+}
+function srcById(id){ return S.sources.find(s=>s.id===id); }
+
+/* ================= categories ================= */
+const CATS = [
+  {name:"Groceries", hi:"सब्ज़ी-राशन", re:/(sabzi|sabji|bhaji|ration|rashan|grocer|kirana|atta|chawal|daal|dal\b|fruit|phal|anda|egg|सब्ज़ी|सब्जी|भाजी|राशन|किराना|आटा|चावल|दाल|फल|अंडे)/},
+  {name:"Milk & Dairy", hi:"दूध", re:/(doodh|dudh|milk|dahi|paneer|ghee|दूध|दही|पनीर|घी|दूधवाल)/},
+  {name:"Utilities", hi:"बिजली-गैस", re:/(bijli|electric|gas|cylinder|paani ka bill|water bill|recharge|mobile|wifi|internet|dth|broadband|बिजली|गैस|सिलेंडर|रिचार्ज|मोबाइल)/},
+  {name:"House help", hi:"काम वाली", re:/(kaamwali|kamwali|maid|\bbai\b|dhobi|press ?wal|istri|isthri|safai|mali|driver|काम ?वाली|बाई|धोबी|प्रेस|इस्त्री|सफाई|माली|ड्राइवर)/},
+  {name:"Transport", hi:"आना-जाना", re:/(auto|rickshaw|riksha|\bola\b|uber|taxi|petrol|diesel|\bbus\b|train|metro|ऑटो|रिक्शा|टैक्सी|पेट्रोल|डीज़ल|बस|ट्रेन|मेट्रो)/},
+  {name:"Health", hi:"दवाई", re:/(doctor|dawai|dava\b|medicin|hospital|clinic|chemist|\btest\b|डॉक्टर|दवा|अस्पताल|मेडिकल|केमिस्ट)/},
+  {name:"Education", hi:"पढ़ाई", re:/(school|fees|tuition|tution|books|kitab|copy|स्कूल|फ़ीस|फीस|ट्यूशन|किताब|कॉपी)/},
+  {name:"Food outside", hi:"बाहर का खाना", re:/(hotel|restaurant|swiggy|zomato|chaat|pizza|tiffin|mithai|sweets|होटल|रेस्टोरेंट|चाट|मिठाई|टिफ़िन)/},
+  {name:"Shopping", hi:"ख़रीदारी", re:/(kapde|kapda|clothes|saree|sari\b|shopping|bartan|jhadu|chappal|shoes|कपड़े|कपड़ा|साड़ी|बर्तन|झाड़ू|चप्पल|जूते)/},
+  {name:"Gifts & Shagun", hi:"शगुन", re:/(gift|shagun|lifafa|shaadi|shadi|birthday|\bneg\b|गिफ्ट|शगुन|लिफाफा|शादी|जन्मदिन)/},
+  {name:"Pooja & Daan", hi:"पूजा-दान", re:/(mandir|pooja|puja|daan|donation|bhandara|prasad|मंदिर|पूजा|दान|भंडारा|प्रसाद)/},
+  {name:"Rent", hi:"किराया", re:/(rent|kiraya|kiraaya|किराया)/},
+  {name:"Income", hi:"आमदनी", re:/(salary|pension|interest|byaj|kamai|सैलरी|पेंशन|ब्याज|कमाई|तनख्वाह)/},
+  {name:"Other", hi:"अन्य", re:/$^/}
+];
+function guessCategory(text, type){
+  for (const c of CATS) if (c.re.test(text)) return c.name;
+  return type==="credit" ? "Income" : "Other";
+}
+
+/* ================= voice parser ================= */
+const DEBIT_RE = /(paid|pay\b|gave|give\b|spent|spend|kharch|kharcha|diye|diya|\bdiy?e\b|de diya|bheja|bheje|bhejh|chukaye|दिए|दिया|दी\b|भेजे|भेजा|खर्च|चुकाए|खरीद|kharid|bought|buy\b|\bliya\b|\bliye\b|\bli\b|लिया|लिए|ली\b)/i;
+const CREDIT_RE = /(received|receive|got\b|mile|mila\b|mili\b|aaya|aaye|aayi|credit|wapas (mile|aaye|mila)|kamaye|मिले|मिला|मिली|आए|आया|आई|वापस|कमाए|salary|pension|सैलरी|पेंशन|तनख्वाह)/i;
+const DEVA_DIGITS = {"०":"0","१":"1","२":"2","३":"3","४":"4","५":"5","६":"6","७":"7","८":"8","९":"9"};
+
+function normText(raw){
+  let t = " " + String(raw).toLowerCase().trim() + " ";
+  t = t.replace(/[०-९]/g, d => DEVA_DIGITS[d]);
+  t = t.replace(/[₹,]/g, " ").replace(/\s+/g, " ");
+  return t;
+}
+function parseDate(t, now){
+  now = now || new Date();
+  const day = ms => isoDate(new Date(now.getTime() - ms*86400000));
+  let m;
+  if (/(day before yesterday|परसों|\bparso\b|\bparson\b)/.test(t)) return {iso:day(2), token:RegExp.$1};
+  if (/(yesterday|\bkal\b|कल)/.test(t)) return {iso:day(1), token:RegExp.$1};
+  if (/(today|\baaj\b|आज|abhi|अभी)/.test(t)) return {iso:day(0), token:RegExp.$1};
+  if ((m = t.match(/(\d{1,2})\s*(tarikh|tareekh|taarikh|तारीख़|तारीख)/))){
+    const d = +m[1];
+    if (d>=1 && d<=31){
+      let dt = new Date(now.getFullYear(), now.getMonth(), d);
+      if (dt > now) dt = new Date(now.getFullYear(), now.getMonth()-1, d);
+      return {iso:isoDate(dt), token:m[0]};
+    }
+  }
+  if ((m = t.match(/(\d{1,2})\s*(din pehle|दिन पहले)/))) return {iso:day(+m[1]), token:m[0]};
+  if (/(last week|pichle hafte|पिछले हफ्ते|पिछले सप्ताह)/.test(t)) return {iso:day(7), token:RegExp.$1};
+  const WD = [["sunday","ravivar","रविवार"],["monday","somvar","सोमवार"],["tuesday","mangalvar","मंगलवार"],["wednesday","budhvar","बुधवार"],["thursday","guruvar","गुरुवार"],["friday","shukravar","शुक्रवार"],["saturday","shanivar","शनिवार"]];
+  for (let w=0; w<7; w++){
+    for (const name of WD[w]){
+      if (t.includes(name)){
+        let back = (now.getDay() - w + 7) % 7;
+        if (back === 0) back = 0; // same weekday mentioned → assume today
+        return {iso:day(back), token:name};
+      }
+    }
+  }
+  return {iso:isoDate(now), token:null};
+}
+function parseAmount(t, dateToken){
+  // remove the date token so "5 tarikh" ka 5 amount na ban jaye
+  let s = dateToken ? t.replace(dateToken, " ") : t;
+  s = s.replace(/(\d{1,2})\s*(tarikh|tareekh|taarikh|तारीख़|तारीख|din pehle|दिन पहले|baje|बजे)/g, " ");
+  const MULT = [[/(\d+(?:\.\d+)?)\s*(lakh|lac|लाख)/, 100000],[/(\d+(?:\.\d+)?)\s*(hazaar|hazar|hajar|हज़ार|हजार|\bk\b)/, 1000],[/(\d+(?:\.\d+)?)\s*(sau|सौ)/, 100]];
+  for (const [re, mul] of MULT){
+    const m = s.match(re);
+    if (m) return +m[1] * mul;
+  }
+  // number adjacent to currency word wins
+  let m = s.match(/(\d+(?:\.\d+)?)\s*(rupaye|rupees|rupee|rupya|rupay|rs\b|रुपये|रुपए|रुपया)/) || s.match(/(rupaye|rupees|rs\.?|रुपये|रुपए)\s*(\d+(?:\.\d+)?)/);
+  if (m) return +(m[1].match(/\d/) ? m[1] : m[2]);
+  // else: largest standalone number
+  const nums = (s.match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(n=>n>0);
+  return nums.length ? Math.max(...nums) : 0;
+}
+function parseSource(t){
+  let best = null, bestLen = 0;
+  for (const s of S.sources){
+    const names = [s.name.toLowerCase(), ...(s.aliases||[]).map(a=>a.toLowerCase())];
+    for (const a of names){
+      if (a && t.includes(a) && a.length > bestLen){ best = s; bestLen = a.length; }
+    }
+  }
+  return best;
+}
+function parseParty(t, srcNames){
+  // "to X" / "from X" / "X ko" / "X se" / "X को" / "X से"
+  const stop = new Set(["the","a","an","my","me","i","maine","मैंने","ne","ने","bank","cash",
+    "yesterday","today","kal","aaj","parso","parson","कल","आज","परसों","in","at","on","for","ke","के",
+    "se","ko","me","mein","से","को","में","subah","shaam","सुबह","शाम","morning","evening",
+    "monday","tuesday","wednesday","thursday","friday","saturday","sunday",
+    "somvar","mangalvar","budhvar","guruvar","shukravar","shanivar","ravivar",
+    "सोमवार","मंगलवार","बुधवार","गुरुवार","शुक्रवार","शनिवार","रविवार","tarikh","तारीख","तारीख़", ...srcNames]);
+  const clean = w => {
+    const parts = w.trim().split(/\s+/).filter(x=>!stop.has(x) && !/^\d+$/.test(x));
+    return parts.slice(0,2).join(" ");
+  };
+  let m = t.match(/(?:\bto\b|\bfrom\b)\s+([a-z\u0900-\u097F]+(?:\s+[a-z\u0900-\u097F]+)?)/);
+  if (m){ const p = clean(m[1]); if (p) return p; }
+  for (const mm of t.matchAll(/([a-z\u0900-\u097F]{3,}(?:wale|wali|वाले|वाली|वाला|wala)?)\s+(?:ko|को|se|से)\b/g)){
+    const p = clean(mm[1]); if (p) return p;
+  }
+  return "";
+}
+function parseUtterance(raw){
+  const t = normText(raw);
+  const d = parseDate(t);
+  const amount = parseAmount(t, d.token);
+  let type = "debit", confident = false;
+  if (CREDIT_RE.test(t) && !DEBIT_RE.test(t)) { type = "credit"; confident = true; }
+  else if (DEBIT_RE.test(t)) { type = "debit"; confident = true; }
+  if (/(nikale|nikala|withdraw|निकाले|निकाला|निकले)/.test(t) && /bank|बैंक/.test(t)) type = "transfer";
+  const src = parseSource(t);
+  const srcNames = S.sources.flatMap(s=>[s.name.toLowerCase(), ...(s.aliases||[])]);
+  const party = parseParty(t, srcNames);
+  const category = type==="transfer" ? "Transfer" : guessCategory(t, type);
+  return { amount, type, confident, txDate: d.iso, dateToken: d.token,
+    sourceId: src ? src.id : (type==="credit" ? "s-bank" : (S.sources[0]?.id||"")),
+    party, category, raw: String(raw).trim() };
+}
+
+/* ================= balances & totals ================= */
+function srcBalance(id){
+  const s = srcById(id); if (!s) return 0;
+  let b = +s.opening || 0;
+  for (const e of S.entries){
+    if (e.type==="credit" && e.sourceId===id) b += e.amount;
+    if (e.type==="debit" && e.sourceId===id) b -= e.amount;
+    if (e.type==="transfer"){ if (e.sourceId===id) b -= e.amount; if (e.toSourceId===id) b += e.amount; }
+  }
+  return b;
+}
+function monthKey(iso){ return iso.slice(0,7); }
+function monthOffsetKey(off){
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-off);
+  return isoDate(d).slice(0,7);
+}
+function monthTotals(off){
+  const mk = monthOffsetKey(off);
+  let out=0, inn=0;
+  for (const e of S.entries){
+    if (monthKey(e.txDate)!==mk) continue;
+    if (e.type==="debit") out += e.amount;
+    if (e.type==="credit") inn += e.amount;
+  }
+  return {out, inn, mk};
+}
+
+/* ================= GitHub sync (same pattern as Khata, file: expenses.json) ================= */
+function loadCfg(){ try{ const c = JSON.parse(localStorage.getItem(CFG_KEY)); if (c && c.owner && c.repo && c.token) return c; }catch(e){} return null; }
+function saveCfg(c){ CFG = c; if (c) localStorage.setItem(CFG_KEY, JSON.stringify(c)); else localStorage.removeItem(CFG_KEY); renderSyncCard(); }
+function getBase(){ return +(localStorage.getItem(BASE_KEY)||0); }
+function setBase(v){ localStorage.setItem(BASE_KEY, String(v||0)); }
+function setSyncUI(text){ document.getElementById("syncText").textContent = text; }
+function ghHeaders(){ return {"Authorization":"Bearer "+CFG.token,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}; }
+function ghUrl(){ return `https://api.github.com/repos/${encodeURIComponent(CFG.owner)}/${encodeURIComponent(CFG.repo)}/contents/${DATA_PATH}`; }
+const b64enc = s => btoa(unescape(encodeURIComponent(s)));
+const b64dec = s => decodeURIComponent(escape(atob(s.replace(/\s/g,""))));
+async function ghGet(){
+  const r = await fetchTimeout(ghUrl() + (CFG.branch?`?ref=${encodeURIComponent(CFG.branch)}`:""), 15000, {headers:ghHeaders()});
+  if (r.status===404) return {missing:true};
+  if (r.status===401||r.status===403) throw new Error("auth");
+  if (!r.ok) throw new Error("GitHub "+r.status);
+  const j = await r.json();
+  return { sha:j.sha, data: JSON.parse(b64dec(j.content)) };
+}
+async function ghPut(sha){
+  const body = {message:"hisaab: update "+new Date().toISOString(), content:b64enc(JSON.stringify(S,null,1))};
+  if (sha) body.sha = sha; if (CFG.branch) body.branch = CFG.branch;
+  const r = await fetchTimeout(ghUrl(), 15000, {method:"PUT", headers:Object.assign({"Content-Type":"application/json"},ghHeaders()), body:JSON.stringify(body)});
+  if (r.status===409||r.status===422) throw new Error("conflict");
+  if (r.status===401||r.status===403) throw new Error("auth");
+  if (!r.ok) throw new Error("GitHub "+r.status);
+}
+function mergeStates(a,b){
+  const newer = (a.updatedAt||0) >= (b.updatedAt||0) ? a : b;
+  const out = Object.assign(defaultState(), JSON.parse(JSON.stringify(newer)));
+  const sm = new Map();
+  for (const s of [...(a.sources||[]), ...(b.sources||[])]) if (!sm.has(s.id)) sm.set(s.id, s);
+  out.sources = [...sm.values()];
+  const dead = Object.assign({}, a.deleted||{}, b.deleted||{});
+  const pm = new Map();
+  for (const p of [...(a.profiles||[]), ...(b.profiles||[])]){
+    if (dead[p.id] && dead[p.id] >= (p.mt||0)) continue;
+    const e = pm.get(p.id); if (!e || (p.mt||0) > (e.mt||0)) pm.set(p.id, p);
+  }
+  out.profiles = [...pm.values()];
+  if (!out.profiles.length) out.profiles = defaultState().profiles;
+  const em = new Map();
+  for (const e of [...(a.entries||[]), ...(b.entries||[])]){
+    if (dead[e.id] && dead[e.id] >= (e.mt||0)) continue;
+    const x = em.get(e.id);
+    if (!x || (e.mt||0) > (x.mt||0)) em.set(e.id, e);
+  }
+  out.entries = [...em.values()];
+  const cutoff = Date.now() - 120*86400000;
+  out.deleted = {};
+  for (const k in dead) if (dead[k] >= cutoff) out.deleted[k] = dead[k];
+  out.updatedAt = Math.max(a.updatedAt||0, b.updatedAt||0);
+  return out;
+}
+function scheduleSync(){ if (!CFG) return; clearTimeout(syncState.pushTimer); syncState.pushTimer = setTimeout(pushRemote, 1400); }
+async function pushRemote(retried){
+  if (!CFG || syncState.busy){ if (syncState.busy) scheduleSync(); return; }
+  syncState.busy = true; setSyncUI("syncing…");
+  try{
+    const remote = await ghGet();
+    if (!remote.missing && (remote.data.updatedAt||0) !== getBase()){ S = mergeStates(S, remote.data); persistLocal(); render(); }
+    await ghPut(remote.missing ? null : remote.sha);
+    setBase(S.updatedAt);
+    setSyncUI("synced " + new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}));
+  }catch(e){
+    if (e.message==="conflict" && !retried){ syncState.busy=false; return pushRemote(true); }
+    setSyncUI(e.message==="auth" ? "sync: bad token" : "offline");
+  } finally { syncState.busy = false; }
+}
+async function pullRemote(){
+  if (!CFG) return;
+  syncState.busy = true; setSyncUI("syncing…");
+  try{
+    const remote = await ghGet();
+    if (remote.missing){ syncState.busy=false; return pushRemote(); }
+    S = mergeStates(S, remote.data);
+    persistLocal(); setBase(remote.data.updatedAt||0); render();
+    if (S.updatedAt > (remote.data.updatedAt||0)){ syncState.busy=false; return pushRemote(); }
+    setSyncUI("synced " + new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}));
+  }catch(e){ setSyncUI(e.message==="auth" ? "sync: bad token" : "offline"); }
+  finally{ syncState.busy = false; }
+}
+
+/* ================= rendering ================= */
+function render(){ if (window.Profiles) Profiles.refresh(); renderHeader(); renderHome(); renderLedger(); renderInsights(); renderSettings(); renderSyncCard(); }
+function renderHeader(){
+  const t = monthTotals(0);
+  document.getElementById("monthSpent").textContent = fmt(t.out) + " spent";
+  document.getElementById("monthIn").textContent = fmt(t.inn) + " received";
+  const total = S.sources.reduce((s,x)=>s + srcBalance(x.id), 0);
+  document.getElementById("totalCash").textContent = fmt(total) + " in hand";
+  document.getElementById("monthLabel").textContent =
+    new Date().toLocaleDateString("en-IN",{month:"long",year:"numeric"}) + " · इस महीने";
+}
+function entryRow(e){
+  const s = srcById(e.sourceId);
+  const what = e.type==="transfer"
+    ? `Moved to ${esc(srcById(e.toSourceId)?.name||"?")}`
+    : (e.party ? esc(cap(e.party)) : esc(e.category));
+  const amtCls = e.type==="credit" ? "up" : e.type==="debit" ? "down" : "";
+  const sign = e.type==="credit" ? "+" : e.type==="debit" ? "−" : "⇄";
+  return `<button class="entry" data-open="${e.id}">
+    <div class="e-top"><div class="e-what">${what}</div>
+      <div class="e-amt num ${amtCls}">${sign} ${esc(fmt(e.amount))}</div></div>
+    <div class="e-sub"><span><span class="cat-chip">${esc(e.category)}</span><span class="src-chip">${esc(s?s.name:"?")}</span></span>
+      <span>${e.note && e.note!==e.party ? "🎙" : ""} ${new Date(e.ts).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</span></div>
+  </button>`;
+}
+const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
+function groupByDay(list){
+  const g = {};
+  for (const e of list) (g[e.txDate] = g[e.txDate]||[]).push(e);
+  return Object.keys(g).sort().reverse().map(d=>({date:d, items:g[d].sort((a,b)=>b.ts-a.ts)}));
+}
+function renderHome(){
+  document.getElementById("srcCards").innerHTML = S.sources.map(s=>{
+    const b = srcBalance(s.id);
+    return `<div class="src-card"><div class="sn">${esc(s.name)}</div><div class="sh">${esc(s.hindi||"")}</div>
+      <div class="sb num ${b<0?"down":""}">${esc(fmt(b))}</div></div>`;
+  }).join("");
+  const recent = S.entries.slice().sort((a,b)=>b.ts-a.ts).slice(0,6);
+  document.getElementById("recentList").innerHTML = recent.length
+    ? recent.map(entryRow).join("")
+    : `<div class="empty">Tap the big mic button below and say, for example:<br><b>"500 diye sabziwale ko"</b><br>or <b>"Received 2000 from Sunil in bank yesterday"</b></div>`;
+}
+function renderLedger(){
+  document.getElementById("srcChips").innerHTML =
+    `<button class="chip ${ledFilter.src==="all"?"on":""}" data-s="all">All sources</button>` +
+    S.sources.map(s=>`<button class="chip ${ledFilter.src===s.id?"on":""}" data-s="${s.id}">${esc(s.name)}</button>`).join("");
+  const types = [["all","Sab / All"],["debit","Paid ↓"],["credit","Received ↑"],["transfer","Moved ⇄"]];
+  document.getElementById("typeChips2").innerHTML =
+    types.map(([v,l])=>`<button class="chip ${ledFilter.type===v?"on":""}" data-ty="${v}">${l}</button>`).join("");
+  let list = S.entries.filter(e =>
+    (ledFilter.src==="all" || e.sourceId===ledFilter.src || e.toSourceId===ledFilter.src) &&
+    (ledFilter.type==="all" || e.type===ledFilter.type));
+  const wrap = document.getElementById("ledgerList");
+  if (!list.length){ wrap.innerHTML = `<div class="empty">No entries yet. Speak one with the mic button.</div>`; return; }
+  wrap.innerHTML = groupByDay(list).map(g=>{
+    const dayOut = g.items.filter(e=>e.type==="debit").reduce((s,e)=>s+e.amount,0);
+    return `<div class="day-head"><span>${fmtDay(g.date)}</span><span class="num">${dayOut?("−"+fmt(dayOut).slice(1)+" spent"):""}</span></div>` +
+      g.items.map(entryRow).join("");
+  }).join("");
+}
+function renderInsights(){
+  document.getElementById("monthChips").innerHTML = [0,1,2].map(off=>{
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-off);
+    return `<button class="chip ${insightMonth===off?"on":""}" data-mo="${off}">${d.toLocaleDateString("en-IN",{month:"short",year:"2-digit"})}</button>`;
+  }).join("");
+  const mk = monthOffsetKey(insightMonth);
+  const monthEntries = S.entries.filter(e=>monthKey(e.txDate)===mk && e.type==="debit");
+  const byCat = {};
+  for (const e of monthEntries) byCat[e.category] = (byCat[e.category]||0) + e.amount;
+  const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const palette = ["#215F49","#A87B2C","#2B577D","#B3362B","#5B3E86","#3E7C7B","#9C4573","#8A5A44","#6E7F2F","#B06A00"];
+  makeChart("catChart","doughnut",
+    {labels:cats.map(c=>c[0]), datasets:[{data:cats.map(c=>c[1]), backgroundColor:cats.map((c,i)=>palette[i%palette.length]), borderColor:"#F4F4EE", borderWidth:2}]},
+    {plugins:{legend:{position:"bottom",labels:{font:{family:"Archivo",size:12},boxWidth:12}},
+      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt(c.parsed)}`}}},cutout:"60%"});
+  // last 14 days bars
+  const days = [], vals = [];
+  for (let i=13;i>=0;i--){
+    const iso = isoDate(new Date(Date.now()-i*86400000));
+    days.push(new Date(iso+"T12:00").toLocaleDateString("en-IN",{day:"numeric"}));
+    vals.push(S.entries.filter(e=>e.txDate===iso && e.type==="debit").reduce((s,e)=>s+e.amount,0));
+  }
+  makeChart("dayChart","bar",
+    {labels:days, datasets:[{label:"Spent", data:vals, backgroundColor:"#215F49", borderRadius:4}]},
+    {plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${fmt(c.parsed.y)}`}}},
+     scales:{y:{ticks:{font:{family:"IBM Plex Mono",size:10}}}, x:{ticks:{font:{family:"Archivo",size:10}}}}});
+  document.getElementById("catRank").innerHTML = cats.length
+    ? cats.slice(0,8).map(([c,v])=>`<div class="rank-line"><span>${esc(c)}</span><span class="num">${esc(fmt(v))}</span></div>`).join("")
+    : `<p class="subtle">No spending recorded this month.</p>`;
+  const t0 = monthTotals(insightMonth), t1 = monthTotals(insightMonth+1);
+  const diff = t0.out - t1.out;
+  document.getElementById("momCard").innerHTML =
+    `<div class="rank-line"><span>This month spent</span><span class="num">${fmt(t0.out)}</span></div>
+     <div class="rank-line"><span>Previous month</span><span class="num">${fmt(t1.out)}</span></div>
+     <div class="rank-line"><span>${diff<=0?"Saved vs last month 👍":"More than last month"}</span>
+       <span class="num ${diff<=0?"up":"down"}">${diff<=0?"−":"+"}${fmt(Math.abs(diff)).slice(1)}</span></div>`;
+}
+function profById(id){ return (S.profiles||[]).find(p=>p.id===id); }
+function renderProfiles(){
+  const el = document.getElementById("profList"); if (!el) return;
+  el.innerHTML = S.profiles.map(p=>`<div class="mem-line" style="display:flex;justify-content:space-between;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)">
+    <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><span style="width:10px;height:10px;border-radius:50%;background:${p.color}"></span>${esc(p.name)}</span>
+    <button data-editprof="${p.id}" style="background:none;border:none;color:var(--deep);font-weight:600;font-size:12px">Edit</button></div>`).join("");
+}
+function removeProfile(id, moveTo){
+  const t = Date.now();
+  for (const e of S.entries) if (e.by===id){ e.by = moveTo; e.mt = t; }
+  S.profiles = S.profiles.filter(p=>p.id!==id);
+  S.deleted[id] = t;
+  save(); render();
+}
+function initProfiles(){
+  Profiles.init({
+    app:"hisaab", title:"Hisaab", hindi:"हिसाब", pickTag:"Kaun hai? · Who is this?",
+    accent:"#215F49", accentDeep:"#174535", gold:"#D8C378",
+    colors:["#215F49","#2B577D","#7D2A2A","#A87B2C","#5B3E86","#8A5A44","#3E7C7B","#9C4573"],
+    list: ()=>S.profiles,
+    countOf: id=>S.entries.filter(e=>e.by===id).length, countLabel:"entries",
+    onEdit: (id,v)=>{ const p=profById(id); if(p){ p.name=v.name; p.color=v.color; p.mt=Date.now(); save(); render(); Profiles.refresh(); } },
+    onAdd: (name,color)=>{ const p={id:uid(), name, color, mt:Date.now()}; S.profiles.push(p); save(); render(); return p.id; },
+    onRemove: (id,to)=>removeProfile(id,to)
+  });
+  Profiles.start();
+}
+function renderSettings(){
+  renderProfiles();
+  document.getElementById("srcList").innerHTML = S.sources.map(s=>`
+    <div class="mem-line"><span><b>${esc(s.name)}</b> <span class="subtle">${esc(s.hindi||"")} · opening ${fmt(s.opening)}</span></span>
+      <button class="del" data-delsrc="${s.id}">Remove</button></div>`).join("");
+  document.querySelectorAll("[data-lang]").forEach(b=>b.classList.toggle("on", b.dataset.lang===S.lang));
+}
+
+function joinInvite(text){
+  try{
+    const m = String(text||"").match(/s=([A-Za-z0-9+\/=_%-]+)/);
+    const raw = decodeURIComponent(m ? m[1] : String(text||"").trim());
+    const p = JSON.parse(b64dec(raw));
+    if (!(p.o && p.r && p.t)) throw 0;
+    saveCfg({owner:p.o, repo:p.r, token:p.t, branch:p.b||""});
+    toast("Connected from invite. Syncing…"); pullRemote();
+  }catch(e){ toast("That invite doesn't look right — copy the whole link again."); }
+}
+function renderSyncCard(){
+  const el = document.getElementById("syncCard");
+  if (CFG){
+    el.innerHTML = `
+      <p style="font-size:14px;line-height:1.5;margin-bottom:10px">Connected to <b class="num">${esc(CFG.owner)}/${esc(CFG.repo)}</b> (file: expenses.json). Entries sync automatically.</p>
+      <button class="btn primary" id="syncNowBtn">Sync now</button>
+      <button class="btn ghost" id="inviteBtn">Copy invite link</button>
+      <button class="btn danger" id="disconnBtn">Disconnect this device</button>`;
+    document.getElementById("syncNowBtn").onclick = ()=>pullRemote();
+    document.getElementById("inviteBtn").onclick = ()=>{
+      const link = Native.inviteBase() + "#s=" + b64enc(JSON.stringify({o:CFG.owner,r:CFG.repo,t:CFG.token,b:CFG.branch||""}));
+      (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(
+        ()=>toast("Invite link copied — share privately, it grants edit access."),
+        ()=>prompt("Copy this link:", link));
+    };
+    document.getElementById("disconnBtn").onclick = ()=>{ saveCfg(null); setBase(0); setSyncUI("local only"); toast("Disconnected."); };
+  } else {
+    el.innerHTML = `
+      <p class="subtle" style="line-height:1.55;margin-bottom:12px">Optional — lets the family see mummy's hisaab too, and backs it up. You can reuse the <b>same private repo and token</b> as Khata; this app writes to its own file (expenses.json). Or just open a Khata-style invite link here.</p>
+      <div class="f-2col">
+        <div class="f-row"><label>GitHub username</label><input id="cfgOwner" autocapitalize="off"></div>
+        <div class="f-row"><label>Data repo</label><input id="cfgRepo" autocapitalize="off" placeholder="khata-data"></div>
+      </div>
+      <div class="f-row"><label>Fine-grained token</label><input id="cfgToken" type="password" placeholder="github_pat_…"></div>
+      <button class="btn primary" id="connectBtn">Connect</button>
+      <div class="f-row" style="margin-top:14px"><label for="cfgInvite">Or paste an invite link / code from the family</label><input id="cfgInvite" autocapitalize="off" autocomplete="off" placeholder="…#s=eyJ…"></div>
+      <button class="btn ghost" id="inviteJoinBtn">Join with invite</button>`;
+    document.getElementById("inviteJoinBtn").onclick = ()=>joinInvite(document.getElementById("cfgInvite").value);
+    /*END_PASTE*/
+    document.getElementById("connectBtn").onclick = async ()=>{
+      const owner = document.getElementById("cfgOwner").value.trim();
+      const repo = document.getElementById("cfgRepo").value.trim();
+      const token = document.getElementById("cfgToken").value.trim();
+      if (!owner||!repo||!token) return toast("Fill all three fields.");
+      saveCfg({owner,repo,token,branch:""});
+      try{ await ghGet(); }catch(e){ if (e.message==="auth"){ saveCfg(null); return toast("GitHub rejected the token."); } }
+      toast("Connected."); pullRemote();
+    };
+  }
+}
+function makeChart(id, type, data, options){
+  const el = document.getElementById(id); if (!el || typeof Chart==="undefined") return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(el, {type, data, options:Object.assign({responsive:true,maintainAspectRatio:false},options)});
+}
+
+/* ================= voice flow ================= */
+let recog = null, recogFinal = "";
+function speechAvailable(){ if (window.Native && Native.isNative) return !!(window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.SpeechRecognition); return "webkitSpeechRecognition" in window || "SpeechRecognition" in window; }
+function openVoiceSheet(){
+  const avail = speechAvailable();
+  openSheet(`<h2>Boliye <span class="subtle" style="font-family:var(--sans);font-size:14px">बोलिए — speak your entry</span></h2>
+    <div class="voice-stage">
+      <button class="vmic" id="vmic" ${avail?"":"disabled"}><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <div class="vhint" id="vhint">${avail
+        ? `Tap the mic, then say things like:<br><b>"500 diye sabziwale ko kal"</b><br><b>"Received 3000 pension in bank"</b><br><b>"5 tarikh ko kaamwali ko 2000 diye almari se"</b>`
+        : `This browser doesn't support voice input.<br>On Android, please use <b>Chrome</b>. You can still type the entry below.`}</div>
+      <div class="transcript" id="transcript"><span class="dim">Your words will appear here…</span></div>
+      <div class="lang-row">
+        <button class="chip ${S.lang==="en-IN"?"on":""}" data-vlang="en-IN">English/Hinglish</button>
+        <button class="chip ${S.lang==="hi-IN"?"on":""}" data-vlang="hi-IN">हिंदी</button>
+      </div>
+    </div>
+    <button class="btn ghost" id="voiceTypeBtn">✎ Type instead</button>`);
+  document.querySelectorAll("[data-vlang]").forEach(b=>b.onclick = ()=>{
+    S.lang = b.dataset.vlang; save();
+    document.querySelectorAll("[data-vlang]").forEach(x=>x.classList.toggle("on", x===b));
+  });
+  document.getElementById("voiceTypeBtn").onclick = ()=>openConfirm(parseUtterance(""), true);
+  if (!avail) return;
+  const mic = document.getElementById("vmic");
+  mic.onclick = ()=>{
+    if (recog){ try{recog.stop();}catch(e){} return; }
+    startListening();
+  };
+}
+function startNativeListening(){
+  const SR = Capacitor.Plugins.SpeechRecognition;
+  const mic = document.getElementById("vmic"), tr = document.getElementById("transcript"), hint = document.getElementById("vhint");
+  let last = "", done = false;
+  recog = { stop: ()=>{ try{ SR.stop(); }catch(e){} } };
+  const fail = m=>{ mic.classList.remove("listening"); recog = null; hint.textContent = m; };
+  const finish = async ()=>{
+    if (done) return; done = true;
+    try{ await SR.removeAllListeners(); }catch(e){}
+    mic.classList.remove("listening"); recog = null;
+    if (last.trim()) openConfirm(parseUtterance(last.trim()), false);
+    else hint.textContent = "Kuch sunai nahi diya — try again, phone ko paas rakhiye.";
+  };
+  (async ()=>{
+    try{
+      const perm = await SR.requestPermissions();
+      if (perm.speechRecognition !== "granted") return fail("Microphone permission needed — allow it in Android Settings → Apps → Hisaab → Permissions.");
+      await SR.removeAllListeners();
+      await SR.addListener("partialResults", d=>{ const t = d && d.matches && d.matches[0]; if (t){ last = t; tr.innerHTML = esc(t); } });
+      await SR.addListener("listeningState", d=>{ if (d && d.status === "stopped") finish(); });
+      mic.classList.add("listening");
+      hint.innerHTML = "Listening… bol kar rukiye, entry apne aap banegi.";
+      await SR.start({ language: S.lang || "en-IN", maxResults: 1, partialResults: true, popup: false });
+    }catch(e){ fail("Voice input failed (" + (e && e.message || e) + "). Try again or type."); }
+  })();
+}
+function startListening(){
+  if (window.Native && Native.isNative) return startNativeListening();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recog = new SR();
+  recog.lang = S.lang || "en-IN";
+  recog.interimResults = true;
+  recog.continuous = false;
+  recog.maxAlternatives = 1;
+  recogFinal = "";
+  const mic = document.getElementById("vmic"), tr = document.getElementById("transcript");
+  mic.classList.add("listening");
+  document.getElementById("vhint").innerHTML = "Listening… bol kar rukiye, entry apne aap banegi.";
+  recog.onresult = e=>{
+    let interim = "";
+    for (let i=e.resultIndex; i<e.results.length; i++){
+      if (e.results[i].isFinal) recogFinal += e.results[i][0].transcript + " ";
+      else interim += e.results[i][0].transcript;
+    }
+    tr.innerHTML = esc(recogFinal) + `<span class="dim">${esc(interim)}</span>`;
+  };
+  recog.onerror = e=>{
+    mic.classList.remove("listening"); recog = null;
+    const msg = e.error==="not-allowed" ? "Microphone permission needed — allow it in browser settings."
+      : e.error==="no-speech" ? "Kuch sunai nahi diya — try again, phone ko paas rakhiye."
+      : "Voice input failed ("+e.error+"). Try again or type.";
+    document.getElementById("vhint").textContent = msg;
+  };
+  recog.onend = ()=>{
+    mic.classList.remove("listening"); recog = null;
+    const text = recogFinal.trim();
+    if (text) openConfirm(parseUtterance(text), false);
+  };
+  try{ recog.start(); }catch(e){ recog = null; }
+}
+
+/* ---- confirm / edit form (voice result or typed or existing) ---- */
+function openConfirm(p, typed, existing){
+  const isEdit = !!existing;
+  const e = existing || {};
+  const val = {
+    amount: isEdit ? e.amount : (p.amount||""),
+    type: isEdit ? e.type : p.type,
+    sourceId: isEdit ? e.sourceId : p.sourceId,
+    toSourceId: isEdit ? (e.toSourceId||"") : "",
+    category: isEdit ? e.category : p.category,
+    party: isEdit ? (e.party||"") : (p.party||""),
+    txDate: isEdit ? e.txDate : p.txDate,
+    note: isEdit ? (e.note||"") : (p.raw||"")
+  };
+  const srcOpts = sel => S.sources.map(s=>`<option value="${s.id}" ${s.id===sel?"selected":""}>${esc(s.name)}</option>`).join("");
+  const catOpts = sel => CATS.map(c=>`<option ${c.name===sel?"selected":""}>${c.name}</option>`).join("") + `<option ${sel==="Transfer"?"selected":""}>Transfer</option>`;
+  openSheet(`<h2>${isEdit?"Edit entry":"Check &amp; save"} <span class="subtle" style="font-family:var(--sans);font-size:13px">जाँच कर सेव करें</span></h2>
+    ${val.note && !isEdit ? `<div class="transcript" style="margin:0 0 13px">🎙 ${esc(val.note)}${p.dateToken?` <span class="cat-chip">date: ${esc(p.dateToken)} → ${fmtDay(val.txDate)}</span>`:""}</div>` : ""}
+    <div class="seg" id="segType">
+      <button class="debit ${val.type==="debit"?"on":""}" data-sg="debit">Paid दिए</button>
+      <button class="credit ${val.type==="credit"?"on":""}" data-sg="credit">Received मिले</button>
+      <button class="transfer ${val.type==="transfer"?"on":""}" data-sg="transfer">Moved ⇄</button>
+    </div>
+    <div class="f-2col">
+      <div class="f-row"><label>Amount ₹</label><input id="cAmt" type="number" inputmode="numeric" min="0" step="any" value="${val.amount}"></div>
+      <div class="f-row"><label>Date</label><input id="cDate" type="date" value="${val.txDate}"></div>
+    </div>
+    <div class="f-row" id="rowSrc"><label id="lblSrc">${val.type==="credit"?"Into which source? कहाँ आए":"From which source? कहाँ से"}</label>
+      <select id="cSrc">${srcOpts(val.sourceId)}</select></div>
+    <div class="f-row" id="rowTo" style="display:${val.type==="transfer"?"block":"none"}"><label>To which source? कहाँ रखे</label>
+      <select id="cTo">${srcOpts(val.toSourceId || (S.sources.find(s=>s.id!==val.sourceId)||{}).id)}</select></div>
+    <div class="f-row" id="rowCat" style="display:${val.type==="transfer"?"none":"block"}"><label>Category</label>
+      <select id="cCat">${catOpts(val.category)}</select></div>
+    <div class="f-row"><label>Who / what? किसको-किसका (optional)</label><input id="cParty" value="${esc(val.party)}" placeholder="e.g. sabziwala, Sunil, bijli bill"></div>
+    ${typed?`<div class="f-row"><label>Note (optional)</label><input id="cNote" value="${esc(val.note)}"></div>`:""}
+    <button class="btn primary" id="cSave">${isEdit?"Save changes":"Save entry ✓"}</button>
+    ${isEdit?'<button class="btn danger" id="cDel">Delete entry</button>':'<button class="btn ghost" id="cRetry">🎙 Speak again</button>'}`);
+  let type = val.type;
+  document.getElementById("segType").addEventListener("click", ev=>{
+    const b = ev.target.closest("[data-sg]"); if (!b) return;
+    type = b.dataset.sg;
+    document.querySelectorAll("#segType button").forEach(x=>x.classList.toggle("on", x===b));
+    document.getElementById("rowTo").style.display = type==="transfer" ? "block" : "none";
+    document.getElementById("rowCat").style.display = type==="transfer" ? "none" : "block";
+    document.getElementById("lblSrc").textContent = type==="credit" ? "Into which source? कहाँ आए" : "From which source? कहाँ से";
+  });
+  document.getElementById("cSave").onclick = ()=>{
+    const amount = +document.getElementById("cAmt").value;
+    const txDate = document.getElementById("cDate").value;
+    if (!(amount>0)) return toast("Amount daaliye — enter the amount.");
+    if (!txDate) return toast("Pick a date.");
+    const rec = existing || {id:uid(), ts:Date.now()};
+    Object.assign(rec, {
+      type, amount, txDate,
+      sourceId: document.getElementById("cSrc").value,
+      toSourceId: type==="transfer" ? document.getElementById("cTo").value : "",
+      category: type==="transfer" ? "Transfer" : document.getElementById("cCat").value,
+      party: document.getElementById("cParty").value.trim(),
+      note: typed ? (document.getElementById("cNote")?.value.trim()||"") : val.note,
+      by: rec.by || (window.Profiles && Profiles.active()) || "",
+      mt: Date.now()
+    });
+    if (rec.type==="transfer" && rec.sourceId===rec.toSourceId) return toast("Source aur destination alag choose kariye.");
+    if (!existing) S.entries.push(rec);
+    save(); render(); closeSheet();
+    toast((rec.type==="credit"?"+ ":"− ") + fmt(amount) + " saved ✓");
+  };
+  if (isEdit) document.getElementById("cDel").onclick = ()=>{
+    openSheet(`<h2>Delete this entry?</h2>
+      <p class="subtle" style="margin-bottom:14px">${esc(fmt(e.amount))} · ${esc(e.category)} · ${fmtDay(e.txDate)}</p>
+      <button class="btn danger" id="delYes" style="margin-top:0">Yes, delete</button>
+      <button class="btn ghost" id="delNo">Cancel</button>`);
+    document.getElementById("delYes").onclick = ()=>{
+      S.entries = S.entries.filter(x=>x.id!==e.id);
+      S.deleted[e.id] = Date.now();
+      save(); render(); closeSheet(); toast("Deleted.");
+    };
+    document.getElementById("delNo").onclick = closeSheet;
+  };
+  else document.getElementById("cRetry").onclick = openVoiceSheet;
+}
+function showDetail(e){
+  const s = srcById(e.sourceId);
+  openSheet(`<h2>${e.type==="credit"?"Received":e.type==="debit"?"Paid":"Moved"} ${esc(fmt(e.amount))}</h2>
+    <div class="kv"><span class="k">Date</span><span class="v">${fmtDay(e.txDate)}</span></div>
+    <div class="kv"><span class="k">Entered at</span><span class="v num">${new Date(e.ts).toLocaleString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>
+    ${e.by&&profById(e.by)?`<div class="kv"><span class="k">Entered by</span><span class="v">${esc(profById(e.by).name)}</span></div>`:""}
+    ${e.party?`<div class="kv"><span class="k">Who/what</span><span class="v">${esc(cap(e.party))}</span></div>`:""}
+    <div class="kv"><span class="k">Category</span><span class="v">${esc(e.category)}</span></div>
+    <div class="kv"><span class="k">Source</span><span class="v">${esc(s?s.name:"?")}${e.toSourceId?" → "+esc(srcById(e.toSourceId)?.name||"?"):""}</span></div>
+    ${e.note?`<div class="kv"><span class="k">🎙 Said</span><span class="v" style="font-weight:400">${esc(e.note)}</span></div>`:""}
+    <button class="btn primary" id="dEdit" style="margin-top:14px">Edit</button>`);
+  document.getElementById("dEdit").onclick = ()=>openConfirm(null, true, e);
+}
+
+/* ================= excel & backup ================= */
+function exportExcel(){
+  if (typeof XLSX==="undefined") return toast("Excel library didn't load — reload the page.");
+  const rows = S.entries.slice().sort((a,b)=>a.txDate.localeCompare(b.txDate)||a.ts-b.ts).map(e=>({
+    Date: e.txDate, Type: e.type==="credit"?"Received":e.type==="debit"?"Paid":"Transfer",
+    "Amount ₹": e.amount, "Who/What": e.party||"", Category: e.category,
+    Source: srcById(e.sourceId)?.name||"", To: e.toSourceId?(srcById(e.toSourceId)?.name||""):"",
+    Note: e.note||"", "Entered by": profById(e.by)?.name||"", "Entered at": new Date(e.ts).toLocaleString("en-IN")
+  }));
+  const bal = S.sources.map(s=>({Source:s.name, "Opening ₹":s.opening, "Balance now ₹":Math.round(srcBalance(s.id))}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Entries");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bal), "Balances");
+  Native.saveWorkbook(wb, "hisaab-" + isoDate(new Date()) + ".xlsx");
+}
+function exportData(){
+  Native.saveText("hisaab-backup-" + isoDate(new Date()) + ".json", JSON.stringify(S,null,2));
+  toast(Native.isNative ? "Backup ready — choose where to save it." : "Backup downloaded.");
+}
+function importData(file){
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const d = JSON.parse(rd.result);
+      if (!d || !Array.isArray(d.entries)) throw new Error("bad");
+      S = mergeStates(S, Object.assign(defaultState(), d));
+      save(); render(); toast("Imported & merged: " + S.entries.length + " entries.");
+    }catch(e){ toast("Import failed — not a Hisaab backup."); }
+  };
+  rd.readAsText(file);
+}
+
+/* ================= misc ui ================= */
+function showView(v){
+  document.querySelectorAll(".view").forEach(x=>x.classList.toggle("active", x.id==="view-"+v));
+  document.querySelectorAll("nav button[data-view]").forEach(b=>b.classList.toggle("on", b.dataset.view===v));
+  if (v==="insights") renderInsights();
+}
+function openSheet(html){
+  document.getElementById("sheetBody").innerHTML = html;
+  document.getElementById("veil").classList.add("open");
+  document.getElementById("sheet").classList.add("open");
+}
+function closeSheet(){
+  if (recog){ try{recog.stop();}catch(e){} recog=null; }
+  document.getElementById("veil").classList.remove("open");
+  document.getElementById("sheet").classList.remove("open");
+}
+function toast(msg, ms=3600){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show"), ms);
+}
+function fetchTimeout(url, ms, opts){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms);
+  return fetch(url, Object.assign({signal:ctrl.signal}, opts||{})).finally(()=>clearTimeout(t));
+}
+
+/* ================= wire-up ================= */
+window.addEventListener("load", ()=>{
+  document.getElementById("manageProfilesBtn").onclick = ()=>Profiles.manage();
+  document.getElementById("profList").addEventListener("click", e=>{ const b=e.target.closest("[data-editprof]"); if (b) Profiles.openEditor(b.dataset.editprof); });
+  initProfiles();
+  if (location.hash.startsWith("#s=")){
+    try{
+      const p = JSON.parse(b64dec(location.hash.slice(3)));
+      if (p.o && p.r && p.t){ saveCfg({owner:p.o, repo:p.r, token:p.t, branch:p.b||""}); toast("Backend configured from invite link."); }
+    }catch(e){ toast("Invite link damaged — ask for a fresh one."); }
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  render();
+  if (CFG) pullRemote(); else setSyncUI("local only");
+  document.addEventListener("visibilitychange", ()=>{ if (!document.hidden && CFG) pullRemote(); });
+
+  document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick = ()=>showView(b.dataset.view));
+  document.getElementById("navMic").onclick = openVoiceSheet;
+  document.getElementById("typeAddBtn").onclick = ()=>openConfirm(parseUtterance(""), true);
+  document.getElementById("veil").onclick = closeSheet;
+  document.getElementById("excelBtn").onclick = exportExcel;
+  document.getElementById("exportBtn").onclick = exportData;
+  document.getElementById("importBtn").onclick = ()=>document.getElementById("importFile").click();
+  document.getElementById("importFile").addEventListener("change", e=>{
+    if (e.target.files[0]) importData(e.target.files[0]);
+    e.target.value = "";
+  });
+
+  document.getElementById("recentList").addEventListener("click", onEntryTap);
+  document.getElementById("ledgerList").addEventListener("click", onEntryTap);
+  function onEntryTap(ev){
+    const b = ev.target.closest("[data-open]"); if (!b) return;
+    const e = S.entries.find(x=>x.id===b.dataset.open);
+    if (e) showDetail(e);
+  }
+  document.getElementById("srcChips").addEventListener("click", e=>{
+    const c = e.target.closest("[data-s]"); if (!c) return;
+    ledFilter.src = c.dataset.s; renderLedger();
+  });
+  document.getElementById("typeChips2").addEventListener("click", e=>{
+    const c = e.target.closest("[data-ty]"); if (!c) return;
+    ledFilter.type = c.dataset.ty; renderLedger();
+  });
+  document.getElementById("monthChips").addEventListener("click", e=>{
+    const c = e.target.closest("[data-mo]"); if (!c) return;
+    insightMonth = +c.dataset.mo; renderInsights();
+  });
+  document.querySelectorAll("[data-lang]").forEach(b=>b.onclick = ()=>{
+    S.lang = b.dataset.lang; save(); renderSettings();
+    toast("Voice language: " + (S.lang==="hi-IN"?"हिंदी":"English/Hinglish"));
+  });
+  document.getElementById("addSrcBtn").onclick = ()=>{
+    const n = document.getElementById("newSrcName").value.trim();
+    const b = +document.getElementById("newSrcBal").value || 0;
+    if (!n) return toast("Source ka naam daaliye.");
+    if (S.sources.some(s=>s.name.toLowerCase()===n.toLowerCase())) return toast("Already exists.");
+    S.sources.push({id:uid(), name:n, hindi:"", opening:b, aliases:[n.toLowerCase()]});
+    document.getElementById("newSrcName").value=""; document.getElementById("newSrcBal").value="";
+    save(); render(); toast(n + " added.");
+  };
+  document.getElementById("srcList").addEventListener("click", e=>{
+    const b = e.target.closest("[data-delsrc]"); if (!b) return;
+    const s = srcById(b.dataset.delsrc);
+    const cnt = S.entries.filter(x=>x.sourceId===s.id || x.toSourceId===s.id).length;
+    if (cnt) return toast(s.name + " has " + cnt + " entries — delete them first.");
+    S.sources = S.sources.filter(x=>x.id!==s.id); save(); render();
+  });
+});
+</script>
+</body>
+</html>

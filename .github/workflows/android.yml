@@ -1,0 +1,60 @@
+name: Build Android APKs
+
+on:
+  push:
+    branches: [android-build]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [khata, hisaab]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Assemble web assets (offline libs + fonts)
+        run: node ../../scripts/build-www.mjs
+      - name: Add Android platform
+        run: npx cap add android
+      - name: Icons, splash, signing, version
+        run: python3 ../../scripts/patch-android.py ${{ matrix.app }}
+      - name: Sync Capacitor
+        run: npx cap sync android
+      - name: Restore signing key
+        run: echo "$KS_B64" | base64 -d > android/app/release.keystore
+        env: { KS_B64: "${{ secrets.KEYSTORE_B64 }}" }
+      - name: Build release APK
+        working-directory: apps/${{ matrix.app }}/android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          KS_FILE: ${{ github.workspace }}/apps/${{ matrix.app }}/android/app/release.keystore
+          KS_PASS: ${{ secrets.KEYSTORE_PASS }}
+          KS_ALIAS: key
+      - name: Name the APK
+        run: |
+          mkdir -p ../../out
+          cp android/app/build/outputs/apk/release/app-release.apk ../../out/${{ matrix.app }}.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-apk
+          path: out/${{ matrix.app }}.apk
+      - name: Publish to release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          TAG="build-${{ github.run_number }}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Build ${{ github.run_number }}" --notes "Khata & Hisaab APKs" --repo "$GITHUB_REPOSITORY"
+          gh release upload "$TAG" ../../out/${{ matrix.app }}.apk --clobber --repo "$GITHUB_REPOSITORY"

@@ -1,0 +1,28 @@
+{
+  "appId": "com.sakshi.khata",
+  "appName": "Khata",
+  "webDir": "www",
+  "backgroundColor": "#5E1F1F",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "launchAutoHide": true,
+      "backgroundColor": "#5E1F1F",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#5E1F1F",
+      "overlaysWebView": false
+    }
+  }
+}

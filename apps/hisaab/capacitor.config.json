@@ -1,0 +1,28 @@
+{
+  "appId": "com.sakshi.hisaab",
+  "appName": "Hisaab",
+  "webDir": "www",
+  "backgroundColor": "#174535",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "launchAutoHide": true,
+      "backgroundColor": "#174535",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#174535",
+      "overlaysWebView": false
+    }
+  }
+}
